@@ -6,6 +6,9 @@ import uuid
 import random
 import string
 
+app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "*"}})  # Allow all origins
+
 def random_string(length):
     characters = string.ascii_lowercase + "0123456789"
     return ''.join(random.choice(characters) for _ in range(length))
@@ -58,9 +61,6 @@ def generate_token(email, password):
     except Exception as e:
         return {'error': str(e)}
 
-app = Flask(__name__)
-CORS(app)
-
 @app.route('/get_token', methods=['POST'])
 def get_token():
     data = request.json
@@ -71,7 +71,13 @@ def get_token():
         return jsonify({'error': 'Email and password are required'}), 400
     
     result = generate_token(email, password)
-    return jsonify(result)
+    
+    response = jsonify(result)
+    response.headers.add("Access-Control-Allow-Origin", "*")  # Allow all origins
+    response.headers.add("Access-Control-Allow-Methods", "POST")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type")
+    
+    return response
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
