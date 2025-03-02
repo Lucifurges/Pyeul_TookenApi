@@ -7,7 +7,9 @@ import random
 import string
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})  # Allow all origins
+
+# Enable CORS for all routes and methods
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 def random_string(length):
     characters = string.ascii_lowercase + "0123456789"
@@ -61,8 +63,15 @@ def generate_token(email, password):
     except Exception as e:
         return {'error': str(e)}
 
-@app.route('/get_token', methods=['POST'])
+@app.route('/get_token', methods=['POST', 'OPTIONS'])
 def get_token():
+    if request.method == 'OPTIONS':
+        response = jsonify({'message': 'CORS preflight request success'})
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
+        response.headers.add("Access-Control-Allow-Headers", "Content-Type")
+        return response, 200
+
     data = request.json
     email = data.get('email')
     password = data.get('password')
@@ -73,11 +82,11 @@ def get_token():
     result = generate_token(email, password)
     
     response = jsonify(result)
-    response.headers.add("Access-Control-Allow-Origin", "*")  # Allow all origins
-    response.headers.add("Access-Control-Allow-Methods", "POST")
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type")
     
     return response
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=8080, debug=True)
