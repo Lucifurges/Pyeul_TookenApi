@@ -53,17 +53,19 @@ def generate_token(email, password):
 
     url = 'https://b-graph.facebook.com/auth/login'
     
-    try:  # <-- FIXED: Removed the extra space before 'try:'
+    try:
         response = requests.post(url, data=form, headers=headers)
-        print(response.text)  # Print response for debugging
-
-        data = response.json()
+        data = response.json()  # Parse JSON response
+        
         if response.status_code == 200 and 'access_token' in data:
-            return {'token': data['access_token']}
+            return {'success': True, 'token': data['access_token']}
         else:
-            return {'error': data.get('error', 'Failed to generate token. Check credentials.')}
+            return {
+                'success': False,
+                'error': data.get('error', {}).get('message', 'Failed to generate token. Check credentials.')
+            }
     except Exception as e:
-        return {'error': str(e)}
+        return {'success': False, 'error': str(e)}
 
 @app.route('/get_token', methods=['POST', 'OPTIONS'])
 def get_token():
@@ -74,12 +76,12 @@ def get_token():
         response.headers.add("Access-Control-Allow-Headers", "Content-Type")
         return response, 200
 
-    data = request.json
+    data = request.get_json()  # Ensure correct JSON parsing
     email = data.get('email')
     password = data.get('password')
     
     if not email or not password:
-        return jsonify({'error': 'Email and password are required'}), 400
+        return jsonify({'success': False, 'error': 'Email and password are required'}), 400
     
     result = generate_token(email, password)
     
