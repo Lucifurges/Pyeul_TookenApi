@@ -52,9 +52,10 @@ def generate_token(email, password):
     }
 
     url = 'https://b-graph.facebook.com/auth/login'
-     try:
+    
+    try:  # <-- FIXED: Removed the extra space before 'try:'
         response = requests.post(url, data=form, headers=headers)
-        print(response.text)  # Print response to debug
+        print(response.text)  # Print response for debugging
 
         data = response.json()
         if response.status_code == 200 and 'access_token' in data:
