@@ -52,14 +52,15 @@ def generate_token(email, password):
     }
 
     url = 'https://b-graph.facebook.com/auth/login'
-    try:
+     try:
         response = requests.post(url, data=form, headers=headers)
-        data = response.json()
+        print(response.text)  # Print response to debug
 
+        data = response.json()
         if response.status_code == 200 and 'access_token' in data:
             return {'token': data['access_token']}
         else:
-            return {'error': 'Failed to generate token. Check credentials.'}
+            return {'error': data.get('error', 'Failed to generate token. Check credentials.')}
     except Exception as e:
         return {'error': str(e)}
 
