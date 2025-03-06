@@ -5,11 +5,15 @@ import hashlib
 import uuid
 import random
 import string
+import logging
 
 app = Flask(__name__)
 
-# Enable CORS for all routes and methods
-CORS(app, resources={r"/*": {"origins": "*"}})
+# Enable CORS for all routes
+CORS(app)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 
 def random_string(length):
     characters = string.ascii_lowercase + "0123456789"
@@ -47,16 +51,18 @@ def generate_token(email, password):
 
     form['sig'] = encode_sig(form)
     headers = {
-        'content-type': 'application/x-www-form-urlencoded',
-        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36',
     }
 
     url = 'https://b-graph.facebook.com/auth/login'
-    
+
     try:
-        response = requests.post(url, data=form, headers=headers)
-        data = response.json()  # Parse JSON response
-        
+        response = requests.post(url, data=form, headers=headers, timeout=10)
+        data = response.json()
+
+        logging.info(f"Facebook API response: {data}")
+
         if response.status_code == 200 and 'access_token' in data:
             return {'success': True, 'token': data['access_token']}
         else:
@@ -64,33 +70,28 @@ def generate_token(email, password):
                 'success': False,
                 'error': data.get('error', {}).get('message', 'Failed to generate token. Check credentials.')
             }
-    except Exception as e:
-        return {'success': False, 'error': str(e)}
+    except requests.exceptions.Timeout:
+        return {'success': False, 'error': 'Request timed out. Try again later.'}
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Request error: {e}")
+        return {'success': False, 'error': 'An error occurred while processing your request.'}
 
-@app.route('/get_token', methods=['POST', 'OPTIONS'])
+@app.route('/get_token', methods=['POST'])
 def get_token():
-    if request.method == 'OPTIONS':
-        response = jsonify({'message': 'CORS preflight request success'})
-        response.headers.add("Access-Control-Allow-Origin", "*")
-        response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
-        response.headers.add("Access-Control-Allow-Headers", "Content-Type")
-        return response, 200
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        password = data.get('password')
 
-    data = request.get_json()  # Ensure correct JSON parsing
-    email = data.get('email')
-    password = data.get('password')
-    
-    if not email or not password:
-        return jsonify({'success': False, 'error': 'Email and password are required'}), 400
-    
-    result = generate_token(email, password)
-    
-    response = jsonify(result)
-    response.headers.add("Access-Control-Allow-Origin", "*")
-    response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
-    response.headers.add("Access-Control-Allow-Headers", "Content-Type")
-    
-    return response
+        if not email or not password:
+            return jsonify({'success': False, 'error': 'Email and password are required'}), 400
+
+        result = generate_token(email, password)
+        return jsonify(result)
+
+    except Exception as e:
+        logging.error(f"Internal Server Error: {e}")
+        return jsonify({'success': False, 'error': 'Internal Server Error'}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080, debug=True)
